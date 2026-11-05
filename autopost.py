@@ -38,6 +38,18 @@ from platforms.carousell import (
     publish_carousell,
     select_size,
 )
+from platforms.preloved import (
+    inspect_preloved_form,
+    inspect_preloved_controls,
+    fill_preloved_basic,
+    select_preloved_category,
+    publish_preloved,
+    detect_preloved_category,
+    select_preloved_size,
+    select_preloved_brand,
+    select_preloved_condition,
+    select_preloved_colors,
+)
 
 from playwright.sync_api import sync_playwright
 
@@ -57,7 +69,7 @@ PLATFORMS = {
     },
     "pl": {
         "name": "Preloved",
-        "url": "https://preloved.co.id/sell",
+        "url": "https://preloved.co.id/sell/",
     },
 }
 
@@ -137,7 +149,11 @@ def run(listing, keys):
 
             page = context.new_page()
 
-            go(page, cfg["url"])
+            # Khusus Preloved: buka halaman jual setelah login
+            if key == "pl":
+                go(page, "https://preloved.co.id/login")
+            else:
+                go(page, cfg["url"])
 
             print("\n=== DATA LISTING ===")
             print(json.dumps(data, indent=4, ensure_ascii=False))
@@ -145,12 +161,19 @@ def run(listing, keys):
             print("\nURL:", page.url)
             print("Title:", page.title())
 
-            input(
-                "\nPastikan akun sudah login, "
-                "selesaikan CAPTCHA/verifikasi jika diminta, "
-                "dan pastikan form jual sudah terbuka. "
-                "Tekan Enter untuk mengisi form..."
-            )
+            if key == "pl":
+                input(
+                    "\nLogin ke akun Preloved terlebih dahulu.\n"
+                    "Setelah berhasil login dan masuk Dashboard, "
+                    "tekan ENTER untuk membuka halaman jual..."
+                )
+            else:
+                input(
+                    "\nPastikan akun sudah login, "
+                    "selesaikan CAPTCHA/verifikasi jika diminta, "
+                    "dan pastikan form jual sudah terbuka. "
+                    "Tekan Enter untuk mengisi form..."
+                )
 
             
             result = {}
@@ -281,18 +304,87 @@ def run(listing, keys):
             # ==========================================
             # PRELOVED
             # ==========================================
-            elif key == "pl":
 
-                for field in FIELDS:
-                    result[field] = fill(
-                        page,
-                        field,
-                        data.get(field),
+            elif key == "pl":
+                print("\n=== NAVIGASI PRELOVED ===")
+
+                # Pastikan halaman Dashboard sudah terbuka setelah login
+                print("Halaman saat ini:", page.url)
+
+                # Cari tombol atau link Jual
+                jual = page.get_by_role(
+                    "link",
+                    name="Jual",
+                    exact=True
+                )
+
+                if jual.count() == 0:
+                    jual = page.get_by_role(
+                        "button",
+                        name="Jual",
+                        exact=True
                     )
 
+                if jual.count() == 0:
+                    print("Tombol Jual tidak ditemukan.")
+                    input("Tekan Enter untuk melanjutkan...")
+                    continue
+
+                print("Tombol Jual ditemukan. Mengklik...")
+
+                jual.first.click()
+                page.wait_for_timeout(3000)
+
+                print("\n=== HASIL NAVIGASI ===")
+                print("URL:", page.url)
+                print("Title:", page.title())
+
+                # Isi field dasar
+                result = fill_preloved_basic(page, data)
+
+                # Upload foto
                 if files:
                     result["photos"] = upload_photos(page, files)
 
+                # Deteksi kategori secara otomatis
+                category_path = detect_preloved_category(data)
+
+                if category_path:
+                    print("\nKategori terdeteksi:", " > ".join(category_path))
+
+                    result["category"] = select_preloved_category(
+                        page,
+                        category_path
+                    )
+                else:
+                    result["category"] = False
+                    print("Kategori perlu ditentukan secara manual.")
+
+                # Pilih size
+                result["size"] = select_preloved_size(
+                    page,
+                    data.get("size", "")
+                )
+
+                # Pilih brand
+                result["brand"] = select_preloved_brand(
+                    page,
+                    data.get("brand", "")
+                )
+
+                # Pilih condition
+                result["condition"] = select_preloved_condition(
+                    page,
+                    data.get("condition", "")
+                )
+
+                # Pilih warna
+                result["colors"] = select_preloved_colors(
+                    page,
+                    data.get("color", [])
+                )
+
+                # Tampilkan hasil pengisian
                 filled = [
                     field for field, success in result.items()
                     if success
@@ -307,10 +399,34 @@ def run(listing, keys):
                 print("Berhasil:", filled)
                 print("Perlu diisi manual:", missing)
 
+                # Tunggu konfirmasi pengguna
                 input(
-                    "\nSilakan periksa listing di Chrome. "
-                    "Setelah selesai, tekan Enter untuk melanjutkan..."
+                    "\nPeriksa form Preloved di Chrome. "
+                    "Tekan Enter untuk menerbitkan produk..."
                 )
+
+                # Klik tombol Terbitkan produk
+                print("\n=== MENERBITKAN PRODUK ===")
+                page.wait_for_timeout(1000)
+                publish_button = page.get_by_role(
+                    "button",
+                    name="Terbitkan produk",
+                    exact=True
+                )
+
+                if publish_button.count() == 0:
+                    print("Tombol Terbitkan produk tidak ditemukan.")
+
+                elif not publish_button.is_enabled():
+                    print("Tombol Terbitkan produk belum aktif.")
+                    print("Periksa kembali field yang wajib diisi.")
+
+                else:
+                    publish_button.click()
+                    page.wait_for_timeout(3000)
+
+                    print("Tombol Terbitkan produk berhasil diklik.")
+                    print("URL saat ini:", page.url)
 
         print("\nSemua platform selesai diproses.")
         print("Chrome tetap dibiarkan terbuka.")
