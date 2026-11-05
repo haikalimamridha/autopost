@@ -1,11 +1,14 @@
 {
-    "title": "Celana Jeans Bershka Washed Blue",
+    "title": "Celana Jeans Balloon Bershka Washed Blue",
     "price": "250000",
     "description": "P:108cm, OL:23cm, LP:38cm",
     "brand": "Bershka",
+    "color": ["Blue"],
     "category": "Men's clothing & shoes",
     "condition": "Used - Good",
+    "size": "M",
     "availability": "List as Single Item",
-    "city": "Jakarta",
-    "photos": "G:/autopost/photos/pants"
+    "city": "Semarang",
+    "deal_methods": ["Mailing"],
+    "photos": "G:/autopost/photos/bershka_jeans"
 }
