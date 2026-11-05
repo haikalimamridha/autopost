@@ -2,6 +2,10 @@ import argparse
 import json
 import re
 from pathlib import Path
+import sys
+
+from core.forms import FIELDS, fill
+from core.browser import go
 
 from core.chrome import (
     PROFILE,
@@ -15,16 +19,6 @@ from core.listing import load_listing
 from core.photos import (
     get_photos,
     upload_photos,
-)
-
-from platforms.facebook import (
-    select_category,
-    select_condition,
-    fill_description,
-    fill_brand,
-    fill_location,
-    select_availability,
-    publish_facebook,
 )
 
 from platforms.facebook import (
@@ -59,16 +53,6 @@ PLATFORMS = {
     },
 }
 
-FIELDS = {
-    "title": r"judul|title|nama",
-    "price": r"harga|price",
-    "description": r"deskripsi|description",
-    "brand": r"brand|merk|merek",
-    "category": r"kategori|category",
-    "availability": r"ketersediaan|availability|stok|stock",
-    "city": r"lokasi|location|kota",
-}
-
 # ==================================================
 # LOGIN MANUAL
 # ==================================================
@@ -98,113 +82,9 @@ def login():
     print("\nProses login selesai.")
     print("Sesi disimpan pada:", PROFILE)
 
-
-# ==================================================
-# NAVIGASI
-# ==================================================
-
-def go(page, url):
-    try:
-        page.goto(
-            url,
-            wait_until="domcontentloaded",
-            timeout=120000,
-        )
-    except Exception as e:
-        print(
-            f"Peringatan: halaman belum selesai dimuat "
-            f"({type(e).__name__})."
-        )
-
-
-# ==================================================
-# ISI FORM
-# ==================================================
-
-def fill(page, key, value):
-    if value is None or value == "":
-        return False
-
-    pattern = re.compile(FIELDS[key], re.I)
-
-    locators = [
-        page.get_by_label(pattern),
-        page.get_by_placeholder(pattern),
-        page.get_by_role("textbox", name=pattern),
-    ]
-
-    for locator in locators:
-        try:
-            if locator.count() > 0:
-                locator.first.fill(str(value), timeout=3000)
-                return True
-
-        except Exception:
-            continue
-
-    return False
-
-def upload_photos(page, files):
-    if not files:
-        print("Tidak ada foto untuk diunggah.")
-        return False
-
-    try:
-        locator = page.locator('input[type="file"]')
-
-        if locator.count() == 0:
-            print("Input file tidak ditemukan.")
-            return False
-
-        locator.first.set_input_files(
-            files,
-            timeout=10000
-        )
-
-        print(f"{len(files)} foto berhasil dimasukkan.")
-        return True
-
-    except Exception as e:
-        print("Upload foto gagal:", e)
-        return False
-
 # ==================================================
 # AUTPOST
 # ==================================================
-
-
-def inspect_form(page):
-    print("\n=== PEMERIKSAAN ELEMEN FORM ===")
-
-    elements = page.locator(
-        'input, textarea, '
-        '[contenteditable="true"], '
-        '[role="textbox"], '
-        '[role="combobox"]'
-    )
-
-    for i in range(elements.count()):
-        el = elements.nth(i)
-
-        try:
-            info = el.evaluate("""
-                el => ({
-                    tag: el.tagName,
-                    type: el.getAttribute('type'),
-                    role: el.getAttribute('role'),
-                    placeholder: el.getAttribute('placeholder'),
-                    ariaLabel: el.getAttribute('aria-label'),
-                    contenteditable: el.getAttribute('contenteditable'),
-                    text: el.innerText,
-                    outerHTML: el.outerHTML.substring(0, 400)
-                })
-            """)
-
-            print(f"\\nElement {i}:")
-            print(info)
-
-        except Exception:
-            continue
 
 def run(listing, keys):
     data = load_listing(listing)
