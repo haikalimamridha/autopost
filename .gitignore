@@ -1,0 +1,5 @@
+# Ignore Chrome profiles, caches, and local data
+chrome-profile/
+profile/
+__pycache__/
+*.pyc
