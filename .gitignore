@@ -1,4 +1,9 @@
-# Ignore Chrome profiles, caches, and local data
+# Abaikan data asli dan folder sensitif
+listing.json
+photos/*
+!photos/.gitkeep
+
+# Abaikan profil browser dan cache
 chrome-profile/
 profile/
 __pycache__/
